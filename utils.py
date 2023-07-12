@@ -10,6 +10,7 @@ def impute_em(X, max_iter=3000, eps=1e-05):
     Return the dictionary with five keys where:
     - Key 'mu' stores the mean estimate of the imputed data.
     - Key 'Sigma' stores the variance estimate of the imputed data.
+
     - Key 'X_imputed' stores the imputed data that is mutated from X using
       the EM algorithm.
     - Key 'C' stores the np.array that specifies the original missing entries
