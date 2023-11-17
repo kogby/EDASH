@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 from functools import reduce
+from datetime import datetime
 
-def impute_em(X, max_iter=3000, eps=1e-05):
+def impute_em(X, max_iter=3000, eps=1e-05, verbose=False):
     # iid multivariate normal samples
     """(pd.dataFrame, int, number) -> {str: pd.dataFrame or int}
 
@@ -15,6 +16,8 @@ def impute_em(X, max_iter=3000, eps=1e-05):
     - Key 'C' stores the np.array that specifies the original missing entries
       of X.
     """
+    if verbose:
+        t_start = datetime.now()
 
     cols = X.columns
     X = X.to_numpy()
@@ -41,6 +44,8 @@ def impute_em(X, max_iter=3000, eps=1e-05):
     no_conv = True
     iteration = 0
     while no_conv and iteration < max_iter:
+        if verbose:
+            print(f"Iteration {iteration+1}/{max_iter}")
         for i in range(nr):
             S_tilde[i] = np.zeros(nc**2).reshape(nc, nc)
             if set(O[i,]) != set(one_to_nc - 1):  # missing component exists
@@ -77,5 +82,7 @@ def impute_em(X, max_iter=3000, eps=1e-05):
         "C": C,
         "iteration": iteration,
     }
-
+    if verbose:
+        print(f"Time used: {datetime.now() - t_start}")
+        
     return result
