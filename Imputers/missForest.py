@@ -33,13 +33,14 @@ class MissForest():
     A list that specified which columns should not be auto encoded. These columns will not be encoded by the mapping.
     """
     
-    def __init__(self, clf = None, rgr = None, init_guess : str = 'mean', max_iter : int = 10, n_estimators : int = 100, cat_cols: list = []):
+    def __init__(self, clf = None, rgr = None, init_guess : str = 'mean', max_iter : int = 10, n_estimators : int = 100, cat_cols: list = [], verbose=False):
         self.classifier = clf
         self.regressor = rgr
         self.initial_guess = init_guess
         self.max_iter = max_iter
         self.n_estimators = n_estimators
         self.cat_cols = cat_cols
+        self.verbose = verbose
         if self.classifier == "RandomForestClassifier":
             self.classifier = RandomForestClassifier(n_estimators=self.n_estimators)
         elif self.classifier == None or "LGBMClassifier":

@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
 from functools import reduce
+from catboost import CatBoostClassifier
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def simulate_nan(X, nan_rate):
     """(pd.dataframe, number) -> {str: pd.dataframe or number}
@@ -45,3 +50,29 @@ def simulate_nan(X, nan_rate):
     }
 
     return result
+
+
+def generate_stack_prediction(X_train, y_train, X_test, y_test):
+    catboost_model = CatBoostClassifier(iterations=100, depth=6, learning_rate=0.1, loss_function='MultiClass', verbose=False, random_state=42)
+    xgboost_model = XGBClassifier(objective='multi:softmax', num_class=6, random_state=42)
+    rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+    catboost_model.fit(X_train, y_train)
+    xgboost_model.fit(X_train, y_train)
+    rf_model.fit(X_train, y_train)
+
+    # 生成預測機率
+    prob_catboost = catboost_model.predict_proba(X_test)
+    prob_xgboost = xgboost_model.predict_proba(X_test)
+    prob_rf = rf_model.predict_proba(X_test)
+
+    # Stacking model使用機率當feature
+    stacked_features = np.column_stack((prob_catboost, prob_xgboost, prob_rf))
+    stacking_model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
+    stacking_model.fit(stacked_features, y_test)
+
+    y_pred_stack = stacking_model.predict(stacked_features)
+    accuracy_stack = accuracy_score(y_test, y_pred_stack)
+    f1_stack = f1_score(y_test, y_pred_stack, average='macro')
+
+    print("Stacking Model Test Accuracy:", accuracy_stack)
+    print("Stacking Model Test F1 Score:", f1_stack)

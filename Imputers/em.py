@@ -70,6 +70,8 @@ def impute_em(X, max_iter=3000, eps=1e-05, verbose=False):
             np.linalg.norm(Mu - Mu_new) >= eps
             or np.linalg.norm(S - S_new, ord=2) >= eps
         )
+        if verbose:
+            print(f"Convergence Check: Mu:{np.linalg.norm(Mu - Mu_new):.4f} | S:{np.linalg.norm(S - S_new, ord=2):.4f}")
         Mu = Mu_new
         S = S_new
         iteration += 1
