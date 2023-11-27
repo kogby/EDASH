@@ -14,6 +14,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 @dataclass
 class continuous:
+    # entropy_return = None
     dependent_var: str = None
 
     def _gaussion(self, x, data_list):
@@ -71,18 +72,16 @@ class continuous:
         df_filled = df.fillna(0)
         vif['VIF'] = [variance_inflation_factor(df_filled.values, i) for i in range(df_filled.shape[1])]
         vif = vif.sort_values(by='VIF', ascending=False)
-        vif.set_index('features', inplace=True)
-        display(vif)
+        return vif.iloc[:, 1:].applymap(lambda x: round(x, 4))
         
     def missing_rate(self, df):
-        missing = df.isnull().sum()
-        missing_rate = missing / len(df)
-        total_missing_rate = missing.sum() / (len(df) * len(df.columns))
+        missing_rates = df.isnull().mean().reset_index()
+
+        # rename columns
+        missing_rates.columns = ['attribute name', 'missing rate']
         
-        result = pd.DataFrame({'missing_rate': missing_rate})
-        display(result)
-        print(total_missing_rate)
-        return total_missing_rate
+        return missing_rates
+    
 
     def basic_info(self, col_list):
         # mean, var, corr_matrix, Q1-Q3 of each column
@@ -110,11 +109,20 @@ class continuous:
         db['imputed'] = False
         combined_df = pd.concat([db, da], ignore_index=True)
         sns.set(style='ticks')
-        plot = sns.pairplot(combined_df, kind='reg', hue='imputed', diag_kind='hist', diag_kws={'alpha': 0.5}, plot_kws={'scatter_kws': {'alpha': 0.3}})
+        sns.pairplot(combined_df, kind='reg', hue='imputed', diag_kind='hist', diag_kws={'alpha': 0.5}, plot_kws={'scatter_kws': {'alpha': 0.3}})
         plt.show()
 
-    def simplification(self, predictions, lables):
-        pass
+    def simpStability(self, table):
+        entropy_percentage_diff = table.iloc[3][1:]
+        abs_list = [abs(x) for x in entropy_percentage_diff.to_list()]
+        mean = sum(abs_list) / len(abs_list)
+        scalared_mean = 10-mean*10
+        
+        return round(scalared_mean,2)
+        
+        
+    def percentage_difference(self, a, b):
+        return (b-a)/a
     def comparison(self, df_before, df_after, method='all'):
         """
         Compare some metrics to show difference percentage of imputed before/after
@@ -126,40 +134,70 @@ class continuous:
         df_basic_before = {}
         df_basic_after = {}
 
+        
+        # create index colun for df_entropy
+        en_index_col = pd.Series(['entropy_before', 'entropy_after', 'difference', 'percentage_difference'], name='Entropy')
+        js_index_col = pd.Series(['js-divergence', 'KL(1||2)', 'KL(2||1)'], name='JS-Divergence')
+        basic_before_col = pd.Series(['min', 'max', 'avg', 'q1', 'q3', 'std', 'skewness', 'kurtosis'], name = 'Before')
+        basic_after_col = pd.Series(['min', 'max', 'avg', 'q1', 'q3', 'std', 'skewness', 'kurtosis'], name = 'After')
+
+            # insert the new column at the leftmost position
         # for entropy
         for col in df_before.columns:
             entropy_before, entropy_after = self.entropy(df_before[col]), self.entropy(df_after[col])
             min_before, max_before, avg_before, q1_before, q3_before, std_before, skewness_before, kurtosis_before = self.basic_info(df_before[col])
             min_after, max_after, avg_after, q1_after, q3_after, std_after, skewness_after, kurtosis_after = self.basic_info(df_after[col])
+            
             df_entropy.update({col:[entropy_before, entropy_after, abs(entropy_before-entropy_after), self.percentage_difference(entropy_before, entropy_after)]})
+            
+            
             js, kl_12, kl_21 = self.js_divergence(df_before[col], df_after[col])
             js_divergence.update({col: [js, kl_12, kl_21]})
             df_basic_before.update({col:[min_before, max_before, avg_before, q1_before, q3_before, std_before, skewness_before, kurtosis_before]})
             df_basic_after.update({col:[min_after, max_after, avg_after, q1_after, q3_after, std_after, skewness_after, kurtosis_after]})
 
-        df_entropy = pd.DataFrame(df_entropy, index=['entropy_before', 'entropy_after', 'difference', 'percentage_difference'])
-        df_entropy.columns.name = 'Entropy'
+        df_entropy = pd.DataFrame(df_entropy).applymap(lambda x: round(x, 4))#, index=['entropy_before', 'entropy_after', 'difference', 'percentage_difference'])
+        df_entropy.insert(0, 'Entropy', en_index_col)
 
-        js_divergence = pd.DataFrame(js_divergence, index=['js_divergence', 'KL(1||2)', 'KL(2||1)'])
-        js_divergence.columns.name = 'KL-Divergence'
 
-        df_basic_before = pd.DataFrame(df_basic_before, index=['min', 'max', 'avg', 'q1', 'q3', 'std', 'skewness', 'kurtosis'])
-        df_basic_after = pd.DataFrame(df_basic_after, index=['min', 'max', 'avg', 'q1', 'q3', 'std', 'skewness', 'kurtosis'])
-        df_basic_before.columns.name = 'Basic Info Before'
-        df_basic_after.columns.name = 'Basic Info After'
-        
+        js_divergence = pd.DataFrame(js_divergence).applymap(lambda x: round(x, 4))
+        js_divergence.insert(0, 'JS-Divergence', js_index_col)
+
+        df_basic_before = pd.DataFrame(df_basic_before).applymap(lambda x: round(x, 4))
+        df_basic_after = pd.DataFrame(df_basic_after).applymap(lambda x: round(x, 4))
+        df_basic_before.insert(0, 'Basic Info Before', basic_before_col)
+        df_basic_after.insert(0, 'Basic Info After', basic_after_col)
+
+
         print('\n*** Missing Rate ***')
-        miss = self.missing_rate(df_before)
+        missing_rate_df = self.missing_rate(df_before).iloc[:, 1:].applymap(lambda x: round(x, 4))
+        display(missing_rate_df)
 
         print('\n*** Entropy ***')
-        display(df_entropy.applymap(lambda x: format(x, '.2e')))
+        # display(df_entropy.iloc[:, 1:].applymap(lambda x: round(x, 4)))
+        # df_entropy = df_entropy.iloc[:, 1:].applymap(lambda x: round(x, 4))
+        # df.iloc[:, 1:] = df.iloc[:, 1:].applymap(lambda x: round(x, 4))
+        display(df_entropy)
 
-        print('\n*** KL Divergence(Relative Entropy) ***')
-        display(js_divergence.applymap(lambda x: format(x, '.2e')))
-
+        
+        print('\n*** Simplified Stability ***')
+        simpEntropy = self.simpStability(df_entropy)
+        print(simpEntropy)
+        
+        print('\n*** JS-Divergence ***')
+        js_divergence = js_divergence
+        display(js_divergence)
+        
+        
         print('\n*** Basic Info ***')
-        display(df_basic_before.applymap(lambda x: format(x, '.2e')))
-        display(df_basic_after.applymap(lambda x: format(x, '.2e')))
+        df_basic_before = df_basic_before
+        df_basic_after = df_basic_after
+        
+        display(df_basic_before)
+        display(df_basic_after)
+        
+        
+        
 
         print('\n*** Covarience ***')
         # 繪製heatmap
@@ -177,17 +215,37 @@ class continuous:
         
         print('\n*** Multi-Collinearity ***')
         print('\n--- Before ---')
-        self.multi_collinearity(df_before)
+        df_vif_before = self.multi_collinearity(df_before)
+        display(df_vif_before)
         print('\n--- After ---')
-        self.multi_collinearity(df_after)
+        df_vif_after = self.multi_collinearity(df_after)
+        display(df_vif_after)
         
+
 
         print('\n*** Pairplot ***')
         self.pair_plot(df_before, df_after)
+        
+        
+        return_dict = {
+            'missingRateTable': missing_rate_df.to_dict(orient='records'),
+            'missingRateColumnName': missing_rate_df.columns.to_list(),
+            'entropyTable': df_entropy.to_dict(orient='records'),
+            'entropyColumnName': df_entropy.columns.to_list(),
+            'simplifiedStablilty': simpEntropy,
+            'jsDivergenceTable': js_divergence.to_dict(orient='records'),
+            'jsDivergenceColumnName': js_divergence.columns.to_list(),
+            'basicInfoBeforeTable': df_basic_before.to_dict(orient='records'),
+            'basicInfoBeforeColumnName': df_basic_before.columns.to_list(), 
+            'basicInfoAfterTable': df_basic_after.to_dict(orient='records'), 
+            'basicInfoAfterColumnName': df_basic_after.columns.to_list(), 
+            'vifBeforeTable': df_vif_before.to_dict(orient='records'),
+            'vifBeforeColumnName': df_vif_before.columns.to_list(), 
+            'vifAfterTable': df_vif_after.to_dict(orient='records'),
+            'vifAfterColumnName': df_vif_after.columns.to_list(), 
+        }
 
-    def percentage_difference(self, a, b):
-        return (b-a)/a
-    
+        return return_dict
 
 ''' example input:
 
