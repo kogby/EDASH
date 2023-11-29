@@ -76,3 +76,5 @@ def generate_stack_prediction(X_train, y_train, X_test, y_test):
 
     print("Stacking Model Test Accuracy:", accuracy_stack)
     print("Stacking Model Test F1 Score:", f1_stack)
+    
+    return accuracy_stack, f1_stack

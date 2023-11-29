@@ -83,6 +83,7 @@ def impute_em(X, max_iter=3000, eps=1e-05, verbose=False):
         "X_imputed": result_df,
         "C": C,
         "iteration": iteration,
+        "time": datetime.now() - t_start,
     }
     if verbose:
         print(f"Time used: {datetime.now() - t_start}")
