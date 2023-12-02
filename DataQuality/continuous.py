@@ -68,17 +68,19 @@ class continuous:
 
     def multi_collinearity(self, df):
         vif = pd.DataFrame()
-        vif["features"] = df.columns 
+        vif["attribute name"] = df.columns 
         df_filled = df.fillna(0)
-        vif['VIF'] = [variance_inflation_factor(df_filled.values, i) for i in range(df_filled.shape[1])]
+        # vif['VIF'] = [variance_inflation_factor(df_filled.values, i) for i in range(df_filled.shape[1])]
+        vif['VIF'] = [round(variance_inflation_factor(df_filled.values, i), 4) for i in range(df_filled.shape[1])]
         vif = vif.sort_values(by='VIF', ascending=False)
-        return vif.iloc[:, 1:].applymap(lambda x: round(x, 4))
+        return vif
         
     def missing_rate(self, df):
         missing_rates = df.isnull().mean().reset_index()
 
         # rename columns
-        missing_rates.columns = ['attribute name', 'missing rate']
+        missing_rates.columns = ['attribute name', 'missing rate(%)']
+        missing_rates['missing rate(%)'] = missing_rates['missing rate(%)'] * 100
         
         return missing_rates
     
@@ -123,6 +125,7 @@ class continuous:
         
     def percentage_difference(self, a, b):
         return (b-a)/a
+    
     def comparison(self, df_before, df_after, method='all'):
         """
         Compare some metrics to show difference percentage of imputed before/after
@@ -133,6 +136,14 @@ class continuous:
         js_divergence = {}
         df_basic_before = {}
         df_basic_after = {}
+
+        print('\n*** Missing Rate ***')
+        missing_rate_df = self.missing_rate(df_before)
+        missing_rate_df['missing rate(%)'] = missing_rate_df['missing rate(%)'].apply(lambda x: round(x, 2))
+        display(missing_rate_df)
+
+        # impute the dataframe with missing records with 0 to continue the execution
+        df_before.fillna(0, inplace=True)
 
         
         # create index colun for df_entropy
@@ -169,14 +180,7 @@ class continuous:
         df_basic_after.insert(0, 'Basic Info After', basic_after_col)
 
 
-        print('\n*** Missing Rate ***')
-        missing_rate_df = self.missing_rate(df_before).iloc[:, 1:].applymap(lambda x: round(x, 4))
-        display(missing_rate_df)
-
         print('\n*** Entropy ***')
-        # display(df_entropy.iloc[:, 1:].applymap(lambda x: round(x, 4)))
-        # df_entropy = df_entropy.iloc[:, 1:].applymap(lambda x: round(x, 4))
-        # df.iloc[:, 1:] = df.iloc[:, 1:].applymap(lambda x: round(x, 4))
         display(df_entropy)
 
         
@@ -195,8 +199,6 @@ class continuous:
         
         display(df_basic_before)
         display(df_basic_after)
-        
-        
         
 
         print('\n*** Covarience ***')
@@ -246,16 +248,8 @@ class continuous:
         }
 
         return return_dict
-
 ''' example input:
-
-    import pandas as pd
-    import numpy as np
-
-    df = pd.DataFrame(np.random.randn(1000, 7), columns=['var1', 'var2', 'var3', 'var4', 'var5', 'var6', 'var7'])
-    tmp = pd.DataFrame(np.random.randn(100, 7), columns=['var1', 'var2', 'var3', 'var4', 'var5', 'var6', 'var7'])
-
     con = continuous()
-    my_frame = con.comparison(df, tmp)
+    return_dict = con.comparison(df_mis, df_imp)
 
 '''
