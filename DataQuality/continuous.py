@@ -62,9 +62,6 @@ class continuous:
         f = lambda x, y: -self._joint_gaussion(x, y, data_list_1, data_list_2)*np.log(self._joint_gaussion(x, y, data_list_1, data_list_2))
         val, _ = integrate.dblquad(f, -20, 20, -20, 20)
         return val
-        # n = 2
-        # cov_matrix = np.cov(data_list_1, data_list_2)
-        # return (1/2)*(n*np.log(2*np.pi) + n + np.log(det(cov_matrix)))
 
     def multi_collinearity(self, df):
         vif = pd.DataFrame()
@@ -126,6 +123,9 @@ class continuous:
     def percentage_difference(self, a, b):
         return (b-a)/a
     
+    
+    
+    
     def comparison(self, df_before, df_after, method='all'):
         """
         Compare some metrics to show difference percentage of imputed before/after
@@ -144,6 +144,7 @@ class continuous:
 
         # impute the dataframe with missing records with 0 to continue the execution
         df_before.fillna(0, inplace=True)
+
 
         
         # create index colun for df_entropy
@@ -204,16 +205,17 @@ class continuous:
         print('\n*** Covarience ***')
         # 繪製heatmap
         plt.figure(figsize=(8, 8))
-        cov_mat = df_before.cov()
-        ax = sns.heatmap(cov_mat, annot=True, cmap='coolwarm')
+        cov_mat = df_before.corr()
+        ax = sns.heatmap(cov_mat, cmap='coolwarm', mask = (np.abs(cov_mat) >= 1))
         plt.title('Covariance Matrix Before')
         plt.show()
 
         plt.figure(figsize=(8, 8))
-        cov_mat_2 = df_after.cov()
-        ax = sns.heatmap(cov_mat_2, annot=True, cmap='coolwarm')
+        cov_mat_2 = df_after.corr()
+        ax = sns.heatmap(cov_mat_2, cmap='coolwarm', mask = (np.abs(cov_mat_2) >= 1))
         plt.title('Covariance Matrix After')
         plt.show()
+        
         
         print('\n*** Multi-Collinearity ***')
         print('\n--- Before ---')
