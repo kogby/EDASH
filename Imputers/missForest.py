@@ -33,20 +33,22 @@ class MissForest():
     A list that specified which columns should not be auto encoded. These columns will not be encoded by the mapping.
     """
     
-    def __init__(self, clf = None, rgr = None, init_guess : str = 'mean', max_iter : int = 10, n_estimators : int = 100, cat_cols: list = None):
+    def __init__(self, clf = None, rgr = None, init_guess : str = 'mean', max_iter : int = 10, n_estimators : int = 100, cat_cols: list = [], verbose=False):
         self.classifier = clf
         self.regressor = rgr
         self.initial_guess = init_guess
         self.max_iter = max_iter
         self.n_estimators = n_estimators
         self.cat_cols = cat_cols
+        self.verbose = verbose
         if self.classifier == "RandomForestClassifier":
             self.classifier = RandomForestClassifier(n_estimators=self.n_estimators)
+        elif self.classifier == None or "LGBMClassifier":
+            self.classifier = LGBMClassifier(n_estimators=self.n_estimators, verbosity=-1)
+            
         if self.regressor == "RandomForestRegressor":
             self.regressor = RandomForestRegressor(n_estimators=self.n_estimators)
-        if self.classifier == None or "LGBMClassifier":
-            self.classifier = LGBMClassifier(n_estimators=self.n_estimators, verbosity=-1)
-        if self.regressor == None or "LGBMRegressor":
+        elif self.regressor == None or "LGBMRegressor":
             self.regressor = LGBMRegressor(n_estimators=self.n_estimators, verbosity=-1)
 
 
@@ -140,13 +142,13 @@ class MissForest():
             df[col].fillna(impute_vals, inplace=True)
         return df
 
-    def fit_transform(self, df, verbose:bool = False):
+    def fit_transform(self, df_mis, verbose:bool = False):
         """
         Train the model, and impute each feature iteratively.
 
         Parameters
         ===========
-        df : n * p matrix, the dataset to be imputed.
+        df_mis : n * p matrix, the dataset to be imputed.
 
         verbose : bool, default=False
         To print training process or not.
@@ -156,6 +158,7 @@ class MissForest():
         df_imp : n * p matrix, the imputed dataset.
         
         """
+        df = df_mis
         mis_row, obs_row, mis_col = self.get_missing_cols_rows(df)
         mapping, r_mapping= self.cat_map_and_revmap(df)
         df_imp = self.init_impute(df)
@@ -172,10 +175,12 @@ class MissForest():
             for col in mis_col:
                 # Determine estimator by data type
                 if col in mapping:
-                    print(f"Category: {col} ")
+                    if(verbose):
+                        print(f"Category: {col} ")
                     estimator = deepcopy(self.classifier)
                 else:
-                    print(f"Continuous: {col} ")
+                    if(verbose):
+                        print(f"Continuous: {col} ")
                     estimator = deepcopy(self.regressor)
                 if(verbose):
                     print(f"Using {estimator}")

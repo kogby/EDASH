@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 from functools import reduce
+from datetime import datetime
 
-def impute_em(X, max_iter=3000, eps=1e-05):
+def impute_em(X, max_iter=3000, eps=1e-05, verbose=False, eps_form='absolute'):
     # iid multivariate normal samples
     """(pd.dataFrame, int, number) -> {str: pd.dataFrame or int}
 
@@ -15,6 +16,8 @@ def impute_em(X, max_iter=3000, eps=1e-05):
     - Key 'C' stores the np.array that specifies the original missing entries
       of X.
     """
+    if verbose:
+        t_start = datetime.now()
 
     cols = X.columns
     X = X.to_numpy()
@@ -41,6 +44,8 @@ def impute_em(X, max_iter=3000, eps=1e-05):
     no_conv = True
     iteration = 0
     while no_conv and iteration < max_iter:
+        if verbose:
+            print(f"Iteration {iteration+1}/{max_iter}")
         for i in range(nr):
             S_tilde[i] = np.zeros(nc**2).reshape(nc, nc)
             if set(O[i,]) != set(one_to_nc - 1):  # missing component exists
@@ -61,10 +66,16 @@ def impute_em(X, max_iter=3000, eps=1e-05):
         Mu_new = np.mean(X_tilde, axis=0)
         S_new = np.cov(X_tilde.T, bias=1) + reduce(np.add, S_tilde.values()) / nr
         # Check convergence
-        no_conv = (
-            np.linalg.norm(Mu - Mu_new) >= eps
-            or np.linalg.norm(S - S_new, ord=2) >= eps
-        )
+        if(eps_form=='absolute'):
+            no_conv = (
+                np.linalg.norm(Mu - Mu_new) >= eps
+                or np.linalg.norm(S - S_new, ord=2) >= eps
+            )
+        elif(eps_form=='relative'):
+            no_conv=(np.linalg.norm((Mu - Mu_new)/Mu) >= eps or np.linalg.norm((S - S_new)/S, ord=2) >= eps)
+            
+        if verbose:
+            print(f"Convergence Check: Mu:{np.linalg.norm(Mu - Mu_new):.4f} | S:{np.linalg.norm(S - S_new, ord=2):.4f}")
         Mu = Mu_new
         S = S_new
         iteration += 1
@@ -76,6 +87,9 @@ def impute_em(X, max_iter=3000, eps=1e-05):
         "X_imputed": result_df,
         "C": C,
         "iteration": iteration,
+        "time": datetime.now() - t_start,
     }
-
+    if verbose:
+        print(f"Time used: {datetime.now() - t_start}")
+        
     return result

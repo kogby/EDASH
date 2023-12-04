@@ -1,9 +1,14 @@
 import numpy as np
 import pandas as pd
 from functools import reduce
+from catboost import CatBoostClassifier
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-def simulate_nan(X, nan_rate):
-    """(pd.dataframe, number) -> {str: pd.dataframe or number}
+def simulate_nan(X, nan_rate, complete_rows=0, make_csv=False, save_path=''):
+    """(pd.dataframe, number) -> dict {pd.dataframe or number}
 
     Return the dictionary with four keys where:
     - Key 'X' stores a pd.dataframe where some of the entries in X
@@ -24,7 +29,6 @@ def simulate_nan(X, nan_rate):
     checker = np.where(sum(C.T) == 0)[0]
     if len(checker) == 0:
         # Every X_i has at least one component that is observed,
-        # which is what we want
         X_complete[C == False] = np.nan
     else:
         # Otherwise, randomly bring back some components in such X_i's
@@ -36,12 +40,54 @@ def simulate_nan(X, nan_rate):
         X_complete[C == False] = np.nan
 
     X_complete = pd.DataFrame(X_complete, columns=df.columns)
+    
+    if complete_rows > 0:
+        if validate_rows_nan(X_complete):
+            num_rows_to_select = int(len(df) * (complete_rows / 100))
+            randomly_selected_rows = df.sample(n=num_rows_to_select)
+            selected_indices = randomly_selected_rows.index
+            X_complete.loc[selected_indices] = df.loc[selected_indices]
 
     result = {
         "X": X_complete,
         "C": C,
         "nan_rate": nan_rate,
-        "nan_rate_actual": np.sum(C == False) / (nr * nc),
+        "nan_rate_actual": X_complete.isna().sum().sum() / (nr * nc),
     }
-
+            
     return result
+
+def validate_rows_nan(df):
+    if df.isnull().any(axis=1).all():
+        print("Every row contains NaN values.")
+        return True
+    else:
+        print("There are rows without any NaN values.")
+        return False
+
+def generate_stack_prediction(X_train, y_train, X_test, y_test):
+    catboost_model = CatBoostClassifier(iterations=100, depth=6, learning_rate=0.1, loss_function='MultiClass', verbose=False, random_state=42)
+    xgboost_model = XGBClassifier(objective='multi:softmax', num_class=6, random_state=42)
+    rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+    catboost_model.fit(X_train, y_train)
+    xgboost_model.fit(X_train, y_train)
+    rf_model.fit(X_train, y_train)
+
+    # Generate prediction probability.
+    prob_catboost = catboost_model.predict_proba(X_test)
+    prob_xgboost = xgboost_model.predict_proba(X_test)
+    prob_rf = rf_model.predict_proba(X_test)
+
+    # Stacking model uses prob as features.
+    stacked_features = np.column_stack((prob_catboost, prob_xgboost, prob_rf))
+    stacking_model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
+    stacking_model.fit(stacked_features, y_test)
+
+    y_pred_stack = stacking_model.predict(stacked_features)
+    accuracy_stack = accuracy_score(y_test, y_pred_stack)
+    f1_stack = f1_score(y_test, y_pred_stack, average='macro')
+
+    print("Stacking Model Test Accuracy:", accuracy_stack)
+    print("Stacking Model Test F1 Score:", f1_stack)
+    
+    return accuracy_stack, f1_stack
