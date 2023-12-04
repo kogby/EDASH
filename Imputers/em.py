@@ -3,7 +3,7 @@ import pandas as pd
 from functools import reduce
 from datetime import datetime
 
-def impute_em(X, max_iter=3000, eps=1e-05, verbose=False):
+def impute_em(X, max_iter=3000, eps=1e-05, verbose=False, eps_form='absolute'):
     # iid multivariate normal samples
     """(pd.dataFrame, int, number) -> {str: pd.dataFrame or int}
 
@@ -66,10 +66,14 @@ def impute_em(X, max_iter=3000, eps=1e-05, verbose=False):
         Mu_new = np.mean(X_tilde, axis=0)
         S_new = np.cov(X_tilde.T, bias=1) + reduce(np.add, S_tilde.values()) / nr
         # Check convergence
-        no_conv = (
-            np.linalg.norm(Mu - Mu_new) >= eps
-            or np.linalg.norm(S - S_new, ord=2) >= eps
-        )
+        if(eps_form=='absolute'):
+            no_conv = (
+                np.linalg.norm(Mu - Mu_new) >= eps
+                or np.linalg.norm(S - S_new, ord=2) >= eps
+            )
+        elif(eps_form=='relative'):
+            no_conv=(np.linalg.norm((Mu - Mu_new)/Mu) >= eps or np.linalg.norm((S - S_new)/S, ord=2) >= eps)
+            
         if verbose:
             print(f"Convergence Check: Mu:{np.linalg.norm(Mu - Mu_new):.4f} | S:{np.linalg.norm(S - S_new, ord=2):.4f}")
         Mu = Mu_new

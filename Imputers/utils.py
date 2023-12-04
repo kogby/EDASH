@@ -52,7 +52,7 @@ def simulate_nan(X, nan_rate, complete_rows=0, make_csv=False, save_path=''):
         "X": X_complete,
         "C": C,
         "nan_rate": nan_rate,
-        "nan_rate_actual": np.sum(C == False) / (nr * nc),
+        "nan_rate_actual": X_complete.isna().sum().sum() / (nr * nc),
     }
             
     return result
@@ -60,8 +60,10 @@ def simulate_nan(X, nan_rate, complete_rows=0, make_csv=False, save_path=''):
 def validate_rows_nan(df):
     if df.isnull().any(axis=1).all():
         print("Every row contains NaN values.")
+        return True
     else:
         print("There are rows without any NaN values.")
+        return False
 
 def generate_stack_prediction(X_train, y_train, X_test, y_test):
     catboost_model = CatBoostClassifier(iterations=100, depth=6, learning_rate=0.1, loss_function='MultiClass', verbose=False, random_state=42)
