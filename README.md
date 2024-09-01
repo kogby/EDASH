@@ -1,6 +1,11 @@
 # EDASH
 ### This repo is still under development and will be refactored in the future.
 
+- #### continuous.py:
+
+The implementation of information metric for numerical data.
+
+
 - #### em_example.ipynb :
 
 The example showcase of applying EM-Algorithm for imputation and information metrics calculation.
@@ -9,9 +14,6 @@ The example showcase of applying EM-Algorithm for imputation and information met
 
 The code for experimenting with the running time and R^2 of EM and KNN method.
 
-- #### continuous.py:
-
-The implementation of information metric.
 
 - #### utils.py :
 
